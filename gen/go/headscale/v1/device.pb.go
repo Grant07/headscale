@@ -75,13 +75,16 @@ func (x *Latency) GetPreferred() bool {
 }
 
 type ClientSupports struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	HairPinning   bool                   `protobuf:"varint,1,opt,name=hair_pinning,json=hairPinning,proto3" json:"hair_pinning,omitempty"`
-	Ipv6          bool                   `protobuf:"varint,2,opt,name=ipv6,proto3" json:"ipv6,omitempty"`
-	Pcp           bool                   `protobuf:"varint,3,opt,name=pcp,proto3" json:"pcp,omitempty"`
-	Pmp           bool                   `protobuf:"varint,4,opt,name=pmp,proto3" json:"pmp,omitempty"`
-	Udp           bool                   `protobuf:"varint,5,opt,name=udp,proto3" json:"udp,omitempty"`
-	Upnp          bool                   `protobuf:"varint,6,opt,name=upnp,proto3" json:"upnp,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	HairPinning *bool                  `protobuf:"varint,1,opt,name=hair_pinning,json=hairPinning,proto3,oneof" json:"hair_pinning,omitempty"` // Made optional based on host_info having null
+	Ipv6        *bool                  `protobuf:"varint,2,opt,name=ipv6,proto3,oneof" json:"ipv6,omitempty"`                                  // Corresponds to NetInfo.WorkingIPv6, make optional
+	Pcp         *bool                  `protobuf:"varint,3,opt,name=pcp,proto3,oneof" json:"pcp,omitempty"`                                    // Make optional
+	Pmp         *bool                  `protobuf:"varint,4,opt,name=pmp,proto3,oneof" json:"pmp,omitempty"`                                    // Make optional
+	Udp         *bool                  `protobuf:"varint,5,opt,name=udp,proto3,oneof" json:"udp,omitempty"`                                    // Corresponds to NetInfo.WorkingUDP, make optional
+	Upnp        *bool                  `protobuf:"varint,6,opt,name=upnp,proto3,oneof" json:"upnp,omitempty"`                                  // Make optional
+	// --- New fields to add from NetInfo ---
+	OsHasIpv6     *bool `protobuf:"varint,7,opt,name=os_has_ipv6,json=osHasIpv6,proto3,oneof" json:"os_has_ipv6,omitempty"`           // From NetInfo.OSHasIPv6 (usually bool, make optional if it can be absent)
+	WorkingIcmpv4 *bool `protobuf:"varint,8,opt,name=working_icmpv4,json=workingIcmpv4,proto3,oneof" json:"working_icmpv4,omitempty"` // From NetInfo.WorkingICMPv4
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,43 +120,57 @@ func (*ClientSupports) Descriptor() ([]byte, []int) {
 }
 
 func (x *ClientSupports) GetHairPinning() bool {
-	if x != nil {
-		return x.HairPinning
+	if x != nil && x.HairPinning != nil {
+		return *x.HairPinning
 	}
 	return false
 }
 
 func (x *ClientSupports) GetIpv6() bool {
-	if x != nil {
-		return x.Ipv6
+	if x != nil && x.Ipv6 != nil {
+		return *x.Ipv6
 	}
 	return false
 }
 
 func (x *ClientSupports) GetPcp() bool {
-	if x != nil {
-		return x.Pcp
+	if x != nil && x.Pcp != nil {
+		return *x.Pcp
 	}
 	return false
 }
 
 func (x *ClientSupports) GetPmp() bool {
-	if x != nil {
-		return x.Pmp
+	if x != nil && x.Pmp != nil {
+		return *x.Pmp
 	}
 	return false
 }
 
 func (x *ClientSupports) GetUdp() bool {
-	if x != nil {
-		return x.Udp
+	if x != nil && x.Udp != nil {
+		return *x.Udp
 	}
 	return false
 }
 
 func (x *ClientSupports) GetUpnp() bool {
-	if x != nil {
-		return x.Upnp
+	if x != nil && x.Upnp != nil {
+		return *x.Upnp
+	}
+	return false
+}
+
+func (x *ClientSupports) GetOsHasIpv6() bool {
+	if x != nil && x.OsHasIpv6 != nil {
+		return *x.OsHasIpv6
+	}
+	return false
+}
+
+func (x *ClientSupports) GetWorkingIcmpv4() bool {
+	if x != nil && x.WorkingIcmpv4 != nil {
+		return *x.WorkingIcmpv4
 	}
 	return false
 }
@@ -161,12 +178,15 @@ func (x *ClientSupports) GetUpnp() bool {
 type ClientConnectivity struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	Endpoints             []string               `protobuf:"bytes,1,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
-	Derp                  string                 `protobuf:"bytes,2,opt,name=derp,proto3" json:"derp,omitempty"`
-	MappingVariesByDestIp bool                   `protobuf:"varint,3,opt,name=mapping_varies_by_dest_ip,json=mappingVariesByDestIp,proto3" json:"mapping_varies_by_dest_ip,omitempty"`
-	Latency               map[string]*Latency    `protobuf:"bytes,4,rep,name=latency,proto3" json:"latency,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ClientSupports        *ClientSupports        `protobuf:"bytes,5,opt,name=client_supports,json=clientSupports,proto3" json:"client_supports,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	DerpRegionName        *string                `protobuf:"bytes,2,opt,name=derp_region_name,json=derpRegionName,proto3,oneof" json:"derp_region_name,omitempty"`                               // Kept original 'derp' as derp_region_name, made optional
+	MappingVariesByDestIp *bool                  `protobuf:"varint,3,opt,name=mapping_varies_by_dest_ip,json=mappingVariesByDestIp,proto3,oneof" json:"mapping_varies_by_dest_ip,omitempty"`     // Made optional
+	Latency               map[string]*Latency    `protobuf:"bytes,4,rep,name=latency,proto3" json:"latency,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // For NetInfo.DERPLatency
+	ClientSupports        *ClientSupports        `protobuf:"bytes,5,opt,name=client_supports,json=clientSupports,proto3,oneof" json:"client_supports,omitempty"`                                 // Made optional as a whole
+	// --- New fields to add from NetInfo ---
+	PreferredDerpId *int32  `protobuf:"varint,6,opt,name=preferred_derp_id,json=preferredDerpId,proto3,oneof" json:"preferred_derp_id,omitempty"` // For NetInfo.PreferredDERP (ID)
+	FirewallMode    *string `protobuf:"bytes,7,opt,name=firewall_mode,json=firewallMode,proto3,oneof" json:"firewall_mode,omitempty"`             // From NetInfo.FirewallMode (Linux)
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ClientConnectivity) Reset() {
@@ -206,16 +226,16 @@ func (x *ClientConnectivity) GetEndpoints() []string {
 	return nil
 }
 
-func (x *ClientConnectivity) GetDerp() string {
-	if x != nil {
-		return x.Derp
+func (x *ClientConnectivity) GetDerpRegionName() string {
+	if x != nil && x.DerpRegionName != nil {
+		return *x.DerpRegionName
 	}
 	return ""
 }
 
 func (x *ClientConnectivity) GetMappingVariesByDestIp() bool {
-	if x != nil {
-		return x.MappingVariesByDestIp
+	if x != nil && x.MappingVariesByDestIp != nil {
+		return *x.MappingVariesByDestIp
 	}
 	return false
 }
@@ -232,6 +252,20 @@ func (x *ClientConnectivity) GetClientSupports() *ClientSupports {
 		return x.ClientSupports
 	}
 	return nil
+}
+
+func (x *ClientConnectivity) GetPreferredDerpId() int32 {
+	if x != nil && x.PreferredDerpId != nil {
+		return *x.PreferredDerpId
+	}
+	return 0
+}
+
+func (x *ClientConnectivity) GetFirewallMode() string {
+	if x != nil && x.FirewallMode != nil {
+		return *x.FirewallMode
+	}
+	return ""
 }
 
 type GetDeviceRequest struct {
@@ -762,23 +796,40 @@ const file_headscale_v1_device_proto_rawDesc = "" +
 	"\aLatency\x12\x1d\n" +
 	"\n" +
 	"latency_ms\x18\x01 \x01(\x02R\tlatencyMs\x12\x1c\n" +
-	"\tpreferred\x18\x02 \x01(\bR\tpreferred\"\x91\x01\n" +
-	"\x0eClientSupports\x12!\n" +
-	"\fhair_pinning\x18\x01 \x01(\bR\vhairPinning\x12\x12\n" +
-	"\x04ipv6\x18\x02 \x01(\bR\x04ipv6\x12\x10\n" +
-	"\x03pcp\x18\x03 \x01(\bR\x03pcp\x12\x10\n" +
-	"\x03pmp\x18\x04 \x01(\bR\x03pmp\x12\x10\n" +
-	"\x03udp\x18\x05 \x01(\bR\x03udp\x12\x12\n" +
-	"\x04upnp\x18\x06 \x01(\bR\x04upnp\"\xe3\x02\n" +
+	"\tpreferred\x18\x02 \x01(\bR\tpreferred\"\xde\x02\n" +
+	"\x0eClientSupports\x12&\n" +
+	"\fhair_pinning\x18\x01 \x01(\bH\x00R\vhairPinning\x88\x01\x01\x12\x17\n" +
+	"\x04ipv6\x18\x02 \x01(\bH\x01R\x04ipv6\x88\x01\x01\x12\x15\n" +
+	"\x03pcp\x18\x03 \x01(\bH\x02R\x03pcp\x88\x01\x01\x12\x15\n" +
+	"\x03pmp\x18\x04 \x01(\bH\x03R\x03pmp\x88\x01\x01\x12\x15\n" +
+	"\x03udp\x18\x05 \x01(\bH\x04R\x03udp\x88\x01\x01\x12\x17\n" +
+	"\x04upnp\x18\x06 \x01(\bH\x05R\x04upnp\x88\x01\x01\x12#\n" +
+	"\vos_has_ipv6\x18\a \x01(\bH\x06R\tosHasIpv6\x88\x01\x01\x12*\n" +
+	"\x0eworking_icmpv4\x18\b \x01(\bH\aR\rworkingIcmpv4\x88\x01\x01B\x0f\n" +
+	"\r_hair_pinningB\a\n" +
+	"\x05_ipv6B\x06\n" +
+	"\x04_pcpB\x06\n" +
+	"\x04_pmpB\x06\n" +
+	"\x04_udpB\a\n" +
+	"\x05_upnpB\x0e\n" +
+	"\f_os_has_ipv6B\x11\n" +
+	"\x0f_working_icmpv4\"\xd2\x04\n" +
 	"\x12ClientConnectivity\x12\x1c\n" +
-	"\tendpoints\x18\x01 \x03(\tR\tendpoints\x12\x12\n" +
-	"\x04derp\x18\x02 \x01(\tR\x04derp\x128\n" +
-	"\x19mapping_varies_by_dest_ip\x18\x03 \x01(\bR\x15mappingVariesByDestIp\x12G\n" +
-	"\alatency\x18\x04 \x03(\v2-.headscale.v1.ClientConnectivity.LatencyEntryR\alatency\x12E\n" +
-	"\x0fclient_supports\x18\x05 \x01(\v2\x1c.headscale.v1.ClientSupportsR\x0eclientSupports\x1aQ\n" +
+	"\tendpoints\x18\x01 \x03(\tR\tendpoints\x12-\n" +
+	"\x10derp_region_name\x18\x02 \x01(\tH\x00R\x0ederpRegionName\x88\x01\x01\x12=\n" +
+	"\x19mapping_varies_by_dest_ip\x18\x03 \x01(\bH\x01R\x15mappingVariesByDestIp\x88\x01\x01\x12G\n" +
+	"\alatency\x18\x04 \x03(\v2-.headscale.v1.ClientConnectivity.LatencyEntryR\alatency\x12J\n" +
+	"\x0fclient_supports\x18\x05 \x01(\v2\x1c.headscale.v1.ClientSupportsH\x02R\x0eclientSupports\x88\x01\x01\x12/\n" +
+	"\x11preferred_derp_id\x18\x06 \x01(\x05H\x03R\x0fpreferredDerpId\x88\x01\x01\x12(\n" +
+	"\rfirewall_mode\x18\a \x01(\tH\x04R\ffirewallMode\x88\x01\x01\x1aQ\n" +
 	"\fLatencyEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12+\n" +
-	"\x05value\x18\x02 \x01(\v2\x15.headscale.v1.LatencyR\x05value:\x028\x01\"\"\n" +
+	"\x05value\x18\x02 \x01(\v2\x15.headscale.v1.LatencyR\x05value:\x028\x01B\x13\n" +
+	"\x11_derp_region_nameB\x1c\n" +
+	"\x1a_mapping_varies_by_dest_ipB\x12\n" +
+	"\x10_client_supportsB\x14\n" +
+	"\x12_preferred_derp_idB\x10\n" +
+	"\x0e_firewall_mode\"\"\n" +
 	"\x10GetDeviceRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\xa0\x06\n" +
 	"\x11GetDeviceResponse\x12\x1c\n" +
@@ -870,6 +921,8 @@ func file_headscale_v1_device_proto_init() {
 	if File_headscale_v1_device_proto != nil {
 		return
 	}
+	file_headscale_v1_device_proto_msgTypes[1].OneofWrappers = []any{}
+	file_headscale_v1_device_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

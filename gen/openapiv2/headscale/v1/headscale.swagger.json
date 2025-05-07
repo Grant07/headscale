@@ -890,6 +890,84 @@
         }
       }
     },
+    "v1ClientConnectivity": {
+      "type": "object",
+      "properties": {
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "derpRegionName": {
+          "type": "string",
+          "title": "Kept original 'derp' as derp_region_name, made optional"
+        },
+        "mappingVariesByDestIp": {
+          "type": "boolean",
+          "title": "Made optional"
+        },
+        "latency": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/v1Latency"
+          },
+          "title": "For NetInfo.DERPLatency"
+        },
+        "clientSupports": {
+          "$ref": "#/definitions/v1ClientSupports",
+          "title": "Made optional as a whole"
+        },
+        "preferredDerpId": {
+          "type": "integer",
+          "format": "int32",
+          "description": "For NetInfo.PreferredDERP (ID)",
+          "title": "--- New fields to add from NetInfo ---"
+        },
+        "firewallMode": {
+          "type": "string",
+          "title": "From NetInfo.FirewallMode (Linux)"
+        }
+      }
+    },
+    "v1ClientSupports": {
+      "type": "object",
+      "properties": {
+        "hairPinning": {
+          "type": "boolean",
+          "title": "Made optional based on host_info having null"
+        },
+        "ipv6": {
+          "type": "boolean",
+          "title": "Corresponds to NetInfo.WorkingIPv6, make optional"
+        },
+        "pcp": {
+          "type": "boolean",
+          "title": "Make optional"
+        },
+        "pmp": {
+          "type": "boolean",
+          "title": "Make optional"
+        },
+        "udp": {
+          "type": "boolean",
+          "title": "Corresponds to NetInfo.WorkingUDP, make optional"
+        },
+        "upnp": {
+          "type": "boolean",
+          "title": "Make optional"
+        },
+        "osHasIpv6": {
+          "type": "boolean",
+          "description": "From NetInfo.OSHasIPv6 (usually bool, make optional if it can be absent)",
+          "title": "--- New fields to add from NetInfo ---"
+        },
+        "workingIcmpv4": {
+          "type": "boolean",
+          "title": "From NetInfo.WorkingICMPv4"
+        }
+      }
+    },
     "v1CreateApiKeyRequest": {
       "type": "object",
       "properties": {
@@ -1056,6 +1134,18 @@
         }
       }
     },
+    "v1Latency": {
+      "type": "object",
+      "properties": {
+        "latencyMs": {
+          "type": "number",
+          "format": "float"
+        },
+        "preferred": {
+          "type": "boolean"
+        }
+      }
+    },
     "v1ListApiKeysResponse": {
       "type": "object",
       "properties": {
@@ -1135,7 +1225,8 @@
           }
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "title": "Corresponds to Hostinfo.Hostname"
         },
         "user": {
           "$ref": "#/definitions/v1User"
@@ -1192,13 +1283,98 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "title": "From Hostinfo.RoutableIPs"
         },
         "subnetRoutes": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "ipnVersion": {
+          "type": "string",
+          "title": "--- New fields based on Hostinfo ---"
+        },
+        "os": {
+          "type": "string"
+        },
+        "osVersion": {
+          "type": "string"
+        },
+        "backendLogId": {
+          "type": "string"
+        },
+        "goArch": {
+          "type": "string"
+        },
+        "goArchVar": {
+          "type": "string"
+        },
+        "goVersion": {
+          "type": "string"
+        },
+        "packageName": {
+          "type": "string",
+          "description": "Android",
+          "title": "OS-specific or more variable fields"
+        },
+        "deviceModel": {
+          "type": "string",
+          "title": "Android"
+        },
+        "frontendLogId": {
+          "type": "string",
+          "title": "Windows"
+        },
+        "noLogsNoSupport": {
+          "type": "boolean",
+          "title": "Windows"
+        },
+        "container": {
+          "type": "boolean",
+          "title": "Linux"
+        },
+        "distro": {
+          "type": "string",
+          "title": "Linux"
+        },
+        "distroVersion": {
+          "type": "string",
+          "title": "Linux"
+        },
+        "distroCodeName": {
+          "type": "string",
+          "title": "Linux"
+        },
+        "desktop": {
+          "type": "boolean",
+          "title": "Linux"
+        },
+        "machineArch": {
+          "type": "string",
+          "title": "Linux (for Hostinfo.Machine)"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ServiceEntry"
+          },
+          "title": "Android, Linux; will be empty list if not present"
+        },
+        "clientConnectivity": {
+          "$ref": "#/definitions/v1ClientConnectivity",
+          "title": "This type now comes from device.proto"
+        },
+        "userspaceNetworking": {
+          "type": "boolean"
+        },
+        "userspaceRouter": {
+          "type": "boolean"
+        },
+        "appConnector": {
+          "type": "boolean"
         }
       }
     },
@@ -1271,6 +1447,18 @@
       "properties": {
         "user": {
           "$ref": "#/definitions/v1User"
+        }
+      }
+    },
+    "v1ServiceEntry": {
+      "type": "object",
+      "properties": {
+        "proto": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },

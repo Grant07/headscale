@@ -333,42 +333,247 @@ func (nodes Nodes) ContainsNodeKey(nodeKey key.NodePublic) bool {
 }
 
 func (node *Node) Proto() *v1.Node {
+	// Initial population with fields always present on the Node struct itself
 	nodeProto := &v1.Node{
-		Id:         uint64(node.ID),
-		MachineKey: node.MachineKey.String(),
-
-		NodeKey:  node.NodeKey.String(),
-		DiscoKey: node.DiscoKey.String(),
-
-		// TODO(kradalby): replace list with v4, v6 field?
-		IpAddresses: node.IPsAsString(),
-		Name:        node.Hostname,
-		GivenName:   node.GivenName,
-		User:        node.User.Proto(),
-		ForcedTags:  node.ForcedTags,
-
-		// Only ApprovedRoutes and AvailableRoutes is set here. SubnetRoutes has
-		// to be populated manually with PrimaryRoute, to ensure it includes the
-		// routes that are actively served from the node.
+		Id:              uint64(node.ID),
+		MachineKey:      node.MachineKey.String(),
+		NodeKey:         node.NodeKey.String(),
+		DiscoKey:        node.DiscoKey.String(),
+		IpAddresses:     node.IPsAsString(),
+		Name:            node.Hostname,  // From Node struct
+		GivenName:       node.GivenName, // From Node struct
+		User:            node.User.Proto(),
+		ForcedTags:      node.ForcedTags,
 		ApprovedRoutes:  util.PrefixesToString(node.ApprovedRoutes),
-		AvailableRoutes: util.PrefixesToString(node.AnnouncedRoutes()),
-
-		RegisterMethod: node.RegisterMethodToV1Enum(),
-
-		CreatedAt: timestamppb.New(node.CreatedAt),
+		AvailableRoutes: util.PrefixesToString(node.AnnouncedRoutes()), // From Hostinfo via AnnouncedRoutes()
+		RegisterMethod:  node.RegisterMethodToV1Enum(),
+		CreatedAt:       timestamppb.New(node.CreatedAt),
+		// online, last_seen, expiry, pre_auth_key handled below
 	}
 
+	// Populate optional fields from the Node struct itself
 	if node.AuthKey != nil {
 		nodeProto.PreAuthKey = node.AuthKey.Proto()
 	}
-
 	if node.LastSeen != nil {
 		nodeProto.LastSeen = timestamppb.New(*node.LastSeen)
 	}
-
+	if node.IsOnline != nil {
+		nodeProto.Online = *node.IsOnline
+	} else {
+		nodeProto.Online = false // Default if not explicitly set
+	}
 	if node.Expiry != nil {
 		nodeProto.Expiry = timestamppb.New(*node.Expiry)
 	}
+
+	// --- Populate New Fields from Hostinfo ---
+	// Ensure node.Hostinfo is not nil before accessing its fields
+	if node.Hostinfo != nil {
+		hi := node.Hostinfo // Local variable for convenience
+
+		// --- Direct String Mappings (Optional in proto -> *string in Go) ---
+		// Check if the source string is non-empty before assigning its address
+		if hi.IPNVersion != "" {
+			nodeProto.IpnVersion = &hi.IPNVersion
+		}
+		if hi.OS != "" {
+			nodeProto.Os = &hi.OS
+		}
+		if hi.OSVersion != "" {
+			nodeProto.OsVersion = &hi.OSVersion
+		}
+		if hi.BackendLogID != "" {
+			nodeProto.BackendLogId = &hi.BackendLogID
+		}
+		if hi.GoArch != "" {
+			nodeProto.GoArch = &hi.GoArch
+		}
+		if hi.GoArchVar != "" {
+			nodeProto.GoArchVar = &hi.GoArchVar
+		}
+		if hi.GoVersion != "" {
+			nodeProto.GoVersion = &hi.GoVersion
+		}
+		if hi.Package != "" {
+			nodeProto.PackageName = &hi.Package
+		}
+		if hi.DeviceModel != "" {
+			nodeProto.DeviceModel = &hi.DeviceModel
+		}
+		if hi.FrontendLogID != "" {
+			nodeProto.FrontendLogId = &hi.FrontendLogID
+		}
+		if hi.Distro != "" {
+			nodeProto.Distro = &hi.Distro
+		}
+		if hi.DistroVersion != "" {
+			nodeProto.DistroVersion = &hi.DistroVersion
+		}
+		if hi.DistroCodeName != "" {
+			nodeProto.DistroCodeName = &hi.DistroCodeName
+		}
+		if hi.Machine != "" {
+			nodeProto.MachineArch = &hi.Machine
+		}
+
+		// --- Boolean Mappings (Optional in proto -> *bool in Go) ---
+		// Handle direct bool from Hostinfo -> assign address to *bool proto field
+		nodeProto.NoLogsNoSupport = &hi.NoLogsNoSupport
+
+		// Handle opt.Bool from Hostinfo -> assign pointer directly to *bool proto field
+		// Assuming opt.Bool is compatible with *bool or has a method to get *bool
+		// If opt.Bool is a struct, you might need: if hi.Container.Defined() { nodeProto.Container = &hi.Container.Value }
+		// Let's assume direct assignment works for now, adjust if needed:
+		if v, ok := hi.Container.Get(); ok {
+			nodeProto.Container = &v // Assign address of v only if ok is true
+		}
+
+		if v, ok := hi.Desktop.Get(); ok {
+			nodeProto.Desktop = &v
+		}
+
+		if v, ok := hi.Userspace.Get(); ok {
+			nodeProto.UserspaceNetworking = &v
+		}
+		if v, ok := hi.UserspaceRouter.Get(); ok {
+			nodeProto.UserspaceRouter = &v
+		}
+		if v, ok := hi.AppConnector.Get(); ok {
+			nodeProto.AppConnector = &v
+		}
+
+		// --- Services (repeated v1.ServiceEntry) ---
+		// tailcfg.Hostinfo.Services is []Service
+		if len(hi.Services) > 0 {
+			nodeProto.Services = make([]*v1.ServiceEntry, 0, len(hi.Services))
+			for _, service := range hi.Services {
+				// Assuming tailcfg.Service is a struct
+				nodeProto.Services = append(nodeProto.Services, &v1.ServiceEntry{
+					Proto: string(service.Proto), // <-- Corrected: Explicit cast to string
+					Port:  int32(service.Port),
+				})
+			}
+		}
+
+		// --- ClientConnectivity (optional v1.ClientConnectivity) ---
+		// tailcfg.Hostinfo.NetInfo is *NetInfo
+		if hi.NetInfo != nil { // Good: Check if NetInfo exists
+			ni := hi.NetInfo // Good: Local variable for convenience
+			// Good: Initialize the proto message.
+			clientConnProto := &v1.ClientConnectivity{}
+			populatedConnectivity := false // Flag to track if we actually set any fields
+
+			// Populate ClientConnectivity fields from NetInfo
+
+			// Handle opt.Bool for MappingVariesByDestIP using Get()
+			if v, ok := ni.MappingVariesByDestIP.Get(); ok {
+				clientConnProto.MappingVariesByDestIp = &v
+				populatedConnectivity = true
+			}
+
+			// Populate nested ClientSupports
+			// Initialize the proto message as it's optional in ClientConnectivity
+			csProto := &v1.ClientSupports{}
+			populatedClientSupports := false // Flag to track if we actually set any fields in the nested struct
+
+			// Use .Get() pattern for all fields that are opt.Bool in NetInfo
+			if v, ok := ni.HairPinning.Get(); ok {
+				csProto.HairPinning = &v
+				populatedClientSupports = true
+			}
+			if v, ok := ni.WorkingIPv6.Get(); ok { // Check actual field name if different
+				csProto.Ipv6 = &v // Maps to WorkingIPv6
+				populatedClientSupports = true
+			}
+			if v, ok := ni.PCP.Get(); ok {
+				csProto.Pcp = &v
+				populatedClientSupports = true
+			}
+			if v, ok := ni.PMP.Get(); ok {
+				csProto.Pmp = &v
+				populatedClientSupports = true
+			}
+			if v, ok := ni.WorkingUDP.Get(); ok { // Check actual field name if different
+				csProto.Udp = &v // Maps to WorkingUDP
+				populatedClientSupports = true
+			}
+			if v, ok := ni.UPnP.Get(); ok {
+				csProto.Upnp = &v
+				populatedClientSupports = true
+			}
+			// CORRECTED: OSHasIPv6 is opt.Bool in NetInfo
+			if v, ok := ni.OSHasIPv6.Get(); ok {
+				csProto.OsHasIpv6 = &v
+				populatedClientSupports = true
+			}
+			// CORRECTED: WorkingICMPv4 is opt.Bool in NetInfo
+			if v, ok := ni.WorkingICMPv4.Get(); ok {
+				csProto.WorkingIcmpv4 = &v
+				populatedClientSupports = true
+			}
+
+			// Only assign the ClientSupports struct if we actually populated any fields in it
+			if populatedClientSupports {
+				clientConnProto.ClientSupports = csProto
+				populatedConnectivity = true // Mark parent as populated too
+			}
+
+			// Populate DERP Information
+			// tailcfg.NetInfo.PreferredDERP is int
+			// v1.ClientConnectivity.PreferredDerpId is optional int32 (*int32 in Go)
+			if ni.PreferredDERP != 0 {
+				preferredDerpID := int32(ni.PreferredDERP)
+				clientConnProto.PreferredDerpId = &preferredDerpID
+				populatedConnectivity = true
+				// DerpRegionName still needs separate logic if desired
+			}
+
+			// DERPLatency: map<string, float64> in NetInfo (seconds)
+			// map<string, *v1.Latency> in proto (v1.Latency has float32 latency_ms)
+			if len(ni.DERPLatency) > 0 {
+				clientConnProto.Latency = make(map[string]*v1.Latency) // Initialize map
+				for regionKey, durationSec := range ni.DERPLatency {
+					// Convert float64 seconds to float32 milliseconds
+					latencyMs := float32(durationSec * 1000.0)
+					isPreferred := false // Default
+					if ni.PreferredDERP != 0 {
+						// TODO: Implement logic to parse regionKey and compare with ni.PreferredDERP
+					}
+					clientConnProto.Latency[regionKey] = &v1.Latency{
+						LatencyMs: latencyMs,
+						Preferred: isPreferred,
+					}
+				}
+				populatedConnectivity = true
+			}
+
+			// FirewallMode: string in NetInfo
+			// optional string in proto -> *string in Go
+			if ni.FirewallMode != "" {
+				clientConnProto.FirewallMode = &ni.FirewallMode
+				populatedConnectivity = true
+			}
+
+			// Endpoints: []netip.AddrPort in Hostinfo (hi)
+			// repeated string in proto's ClientConnectivity
+			// --- CORRECTION: This should use hi.Endpoints ---
+			if len(node.Endpoints) > 0 {
+				clientConnProto.Endpoints = make([]string, 0, len(node.Endpoints))
+				for _, ep := range node.Endpoints { // Iterate over node.Endpoints
+					// netip.AddrPort has a String() method that gives "ip:port"
+					clientConnProto.Endpoints = append(clientConnProto.Endpoints, ep.String())
+				}
+				populatedConnectivity = true // Mark as populated if endpoints exist
+			}
+
+			// Assign the populated connectivity struct only if we added data to it
+			if populatedConnectivity {
+				nodeProto.ClientConnectivity = clientConnProto
+			}
+		}
+	} // End if node.Hostinfo != nil
+	// --- End of Hostinfo Population ---
 
 	return nodeProto
 }

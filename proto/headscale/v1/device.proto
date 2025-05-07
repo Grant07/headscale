@@ -13,20 +13,28 @@ message Latency {
 }
 
 message ClientSupports {
-  bool hair_pinning = 1;
-  bool ipv6 = 2;
-  bool pcp = 3;
-  bool pmp = 4;
-  bool udp = 5;
-  bool upnp = 6;
+  optional bool hair_pinning = 1; // Made optional based on host_info having null
+  optional bool ipv6 = 2;         // Corresponds to NetInfo.WorkingIPv6, make optional
+  optional bool pcp = 3;          // Make optional
+  optional bool pmp = 4;          // Make optional
+  optional bool udp = 5;          // Corresponds to NetInfo.WorkingUDP, make optional
+  optional bool upnp = 6;         // Make optional
+
+  // --- New fields to add from NetInfo ---
+  optional bool os_has_ipv6 = 7;      // From NetInfo.OSHasIPv6 (usually bool, make optional if it can be absent)
+  optional bool working_icmpv4 = 8; // From NetInfo.WorkingICMPv4
 }
 
 message ClientConnectivity {
   repeated string endpoints = 1;
-  string derp = 2;
-  bool mapping_varies_by_dest_ip = 3;
-  map<string, Latency> latency = 4;
-  ClientSupports client_supports = 5;
+  optional string derp_region_name = 2; // Kept original 'derp' as derp_region_name, made optional
+  optional bool mapping_varies_by_dest_ip = 3; // Made optional
+  map<string, Latency> latency = 4;         // For NetInfo.DERPLatency
+  optional ClientSupports client_supports = 5; // Made optional as a whole
+
+  // --- New fields to add from NetInfo ---
+  optional int32 preferred_derp_id = 6;     // For NetInfo.PreferredDERP (ID)
+  optional string firewall_mode = 7;       // From NetInfo.FirewallMode (Linux)
 }
 
 message GetDeviceRequest { string id = 1; }

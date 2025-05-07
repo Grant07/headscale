@@ -4,6 +4,7 @@ package headscale.v1;
 import "google/protobuf/timestamp.proto";
 import "headscale/v1/preauthkey.proto";
 import "headscale/v1/user.proto";
+import "headscale/v1/device.proto";
 
 option go_package = "github.com/juanfont/headscale/gen/go/v1";
 
@@ -14,8 +15,12 @@ enum RegisterMethod {
   REGISTER_METHOD_OIDC = 3;
 }
 
+message ServiceEntry {
+  string proto = 1;
+  int32 port = 2;
+}
+
 message Node {
-  // 9: removal of last_successful_update
   reserved 9;
 
   uint64 id = 1;
@@ -23,7 +28,7 @@ message Node {
   string node_key = 3;
   string disco_key = 4;
   repeated string ip_addresses = 5;
-  string name = 6;
+  string name = 6; // Corresponds to Hostinfo.Hostname
   User user = 7;
 
   google.protobuf.Timestamp last_seen = 8;
@@ -36,12 +41,6 @@ message Node {
   RegisterMethod register_method = 13;
 
   reserved 14 to 17;
-  // google.protobuf.Timestamp updated_at = 14;
-  // google.protobuf.Timestamp deleted_at = 15;
-
-  // bytes host_info      = 15;
-  // bytes endpoints      = 16;
-  // bytes enabled_routes = 17;
 
   repeated string forced_tags = 18;
   repeated string invalid_tags = 19;
@@ -49,8 +48,36 @@ message Node {
   string given_name = 21;
   bool online = 22;
   repeated string approved_routes = 23;
-  repeated string available_routes = 24;
+  repeated string available_routes = 24; // From Hostinfo.RoutableIPs
   repeated string subnet_routes = 25;
+
+  // --- New fields based on Hostinfo ---
+  optional string ipn_version = 26;
+  optional string os = 27;
+  optional string os_version = 28;
+  optional string backend_log_id = 29;
+  optional string go_arch = 30;
+  optional string go_arch_var = 31;
+  optional string go_version = 32;
+
+  // OS-specific or more variable fields
+  optional string package_name = 33;         // Android
+  optional string device_model = 34;         // Android
+  optional string frontend_log_id = 35;      // Windows
+  optional bool no_logs_no_support = 36;   // Windows
+  optional bool container = 37;              // Linux
+  optional string distro = 38;               // Linux
+  optional string distro_version = 39;       // Linux
+  optional string distro_code_name = 40;     // Linux
+  optional bool desktop = 41;                // Linux
+  optional string machine_arch = 42;         // Linux (for Hostinfo.Machine)
+
+  repeated ServiceEntry services = 43;     // Android, Linux; will be empty list if not present
+  optional ClientConnectivity client_connectivity = 44; // This type now comes from device.proto
+
+  optional bool userspace_networking = 45;
+  optional bool userspace_router = 46;
+  optional bool app_connector = 47;
 }
 
 message RegisterNodeRequest {
